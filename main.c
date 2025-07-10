@@ -16,20 +16,17 @@
 #include "dimmer.h"
 #include "dimmer_hal.h"
 #include "dmx_rx.h"
+#include "pic18f46q10.h"
 
 unsigned char check_test_mode(void);
 void process_channels(void);
 void test_init(void);
 void test_update(void);
 void test(void);
-void adc_init(void);
-void start_conversions(unsigned char* output_buffer, unsigned char first_channel, unsigned char last_channel);
-void adc_mux_set(void);
-void adc_mux_reset(void);
 
 //8 channels buffer
-unsigned char channels_data[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0};
-unsigned char adc_buffer[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0};
+unsigned char channels_data[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+unsigned char adc_buffer[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // User variables
 unsigned char is_test_mode;
@@ -43,8 +40,24 @@ enum directions
 }global_fader_direction;
 
 void main(void) {
-    OSCCON = 0b01111100;   //HS PLL oscillator @48Mhz
-    //OSCCON = 0b01111110;   //Int 8 MHz
+    // Set the CLOCK CONTROL module to the options selected in the user interface.
+    OSCCON1 = (0 << _OSCCON1_NDIV_POSN)   // NDIV 1
+        | (2 << _OSCCON1_NOSC_POSN);  // NOSC EXTOSC with 4x PLL
+    OSCCON3 = (0 << _OSCCON3_SOSCPWR_POSN)   // SOSCPWR Low power
+        | (0 << _OSCCON3_CSWHOLD_POSN);  // CSWHOLD may proceed
+    OSCEN = (0 << _OSCEN_EXTOEN_POSN)   // EXTOEN disabled
+        | (0 << _OSCEN_HFOEN_POSN)   // HFOEN disabled
+        | (0 << _OSCEN_MFOEN_POSN)   // MFOEN disabled
+        | (0 << _OSCEN_LFOEN_POSN)   // LFOEN disabled
+        | (0 << _OSCEN_SOSCEN_POSN)   // SOSCEN disabled
+        | (0 << _OSCEN_ADOEN_POSN);  // ADOEN disabled
+    OSCFRQ = (8 << _OSCFRQ_HFFRQ_POSN);  // HFFRQ 64_MHz
+    OSCTUNE = (0 << _OSCTUNE_TUN_POSN);  // TUN 0x0
+
+    //Wait for PLL to stabilize
+    while( OSCSTATbits.PLLR == 0)
+    {
+    }
     
 #ifdef debug
     TRISDbits.TRISD0=0;
@@ -53,7 +66,6 @@ void main(void) {
     
     is_test_mode = check_test_mode();
     dimmer_init (channels_data, NUM_CHANNELS);
-    adc_init();
     usart_config();
     usart_timeout_timer_init(USART_TIMEOUT_L, USART_TIMEOUT_H);
     usart_timeout_reset(USART_TIMEOUT_L, USART_TIMEOUT_H);
@@ -63,9 +75,19 @@ void main(void) {
     {
         test_init();
     }
+    
     //Enable interrupts  
-    RCONbits.IPEN=1;
+    // Enable Interrupt Priority Vectors (16CXXX Compatibility Mode)
+    INTCONbits.IPEN = 1;
+
+    // Assign peripheral interrupt priority vectors
+
+    // INT0I - high priority
+    IPR0bits.INT0IP = 1;
+    
+    //Enables all low-priority interrupts
     INTCONbits.GIEL=1;
+    //Enables all high-priority interrupts
     INTCONbits.GIEH=1;
     //Go!
     while(1)
@@ -84,7 +106,6 @@ void main(void) {
 #endif
         //TODO
         address=read_address();
-        start_conversions(adc_buffer, 0, NUM_CHANNELS);
         if (is_test_mode == 1)
         {
             test();
@@ -307,59 +328,3 @@ void test(void)
     }
     
 }
-
-void adc_init()
-{
-    ADCON0bits.GO_DONE=0;           // Converter is idle
-    ADCON1bits.VCFG=0b00;           // No reference inputs
-    ADCON1bits.PCFG=0b1001;         // All channels analog inputs
-    ADCON2=0b00000001;              // Left justified, 0 Tad adquisition, Fosc/8
-    TRISA |= 0b00101111;            // Set TRIS for ADC pins
-    TRISE |= 0b00000111;   
-    ADON=1;                         // ADC on
-}
-
-void start_conversions(unsigned char* output_buffer, unsigned char first_channel, unsigned char last_channel)
-{
-    unsigned char adc_index=first_channel;
-
-    ADCON0bits.CHS=adc_index;       // Select channel
-    while (adc_index<last_channel)
-    {
-        __delay_us(10);                 // Wait for adquisition time
-        ADCON0bits.GO_DONE = 1;         // Start conversion
-        __delay_us(5);                  // Wait 5 us before changing mux to allow C to be disconnected
-        ADCON0bits.CHS=++adc_index;     // Increment channel index
-        while (ADCON0bits.GO_DONE){}    // Wait for conversion
-        output_buffer[adc_index-1] = ADRESH; // Save converted value
-        ADRESH = 0;
-    }
-    
-}
-
-void adc_mux_set(void)
-{
-#ifdef _18F2550
-    return;
-#else
-#ifndef six_ch    
-    LATEbits.LATE1=1;   //Mux enabled    
-#else 
-    return;
-#endif //end of six_ch
-#endif //end of _18F2550
-}
-
-void adc_mux_reset(void)
-{    
-#ifdef _18F2550
-    return;
-#else
-#ifndef six_ch    
-    LATEbits.LATE1=0;   //Mux disaabled 
-#else 
-    return;
-#endif //end of six_ch
-#endif //end of _18F2550
-}
-

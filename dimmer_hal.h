@@ -51,10 +51,10 @@
 #define ZC_falling_edge                 0
 
 /*Channel IO ports addresses*/
-/*Some compilations are deprecated. It works for  6 ch*/
-volatile unsigned char* output_channels_addresses[NUM_CHANNELS] = {&PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTD};
-volatile unsigned char* output_channels_tris[NUM_CHANNELS] = {&TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISD};
-char  output_channels_bits[NUM_CHANNELS] = {7, 6, 5, 4, 3, 2, 1, 4};
+/*Some compilations are deprecated*/
+volatile unsigned char* output_channels_addresses[NUM_CHANNELS] = {&PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTD, &PORTA, &PORTA, &PORTA, &PORTA, &PORTA, &PORTE, &PORTE, &PORTE};
+volatile unsigned char* output_channels_tris[NUM_CHANNELS] = {&TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISD, &TRISA, &TRISA, &TRISA, &TRISA, &TRISA, &TRISE, &TRISE, &TRISE};
+char  output_channels_bits[NUM_CHANNELS] = {7, 6, 5, 4, 3, 2, 1, 4, 0, 1, 2, 3, 5, 0, 1, 2};
 
 /*HAL functions*/
 
