@@ -40,10 +40,10 @@ void usart_timeout_timer_init(char low, char high)
 {
     TMR0H=high;
     TMR0L=low;
-    T0CONbits.T08BIT=0;     //16 bit timer
-    T0CONbits.T0CS=0;       //T0 as timer
-    T0CONbits.PSA=0;        //Prescaler on
-    INTCON2bits.T0IP=0;     //Low priority
+    T0CON0bits.T016BIT=1;     //16 bit timer
+    T0CON1bits.T0CS=2;       //T0 source Internal instruction cycle clock (CLKO) (Fosc/4)
+    //RBS TODO: configure prescaler
+    IPR0.TMR0IP=0;     //Low priority
 }
 
 inline void usart_timeout_reset(char low, char high)
@@ -51,18 +51,18 @@ inline void usart_timeout_reset(char low, char high)
     TMR0H=high;
     TMR0L=low;
     rx_valid=DATA_RX_VALID; //Validates data
-    T0CONbits.TMR0ON=1; //Turn on timer
-    INTCONbits.T0IE=1; //Enable timer interrupt
-    INTCONbits.T0IF=0; //Clear flag    
+    T0CON0bits.T0EN=1; //Turn on timer
+    PIE0bits.TMR0IE=1; //Enable timer interrupt
+    PIR0bits.TMR0IF=0; //Clear flag    
 }
 
 inline void usart_timeout_isr(void)
 {
-    if (INTCONbits.T0IE && INTCONbits.T0IF)
+    if (PIE0bits.TMR0IE && PIR0bits.TMR0IF)
     {
         rx_valid=DATA_RX_INVALID; //Invalidates data
-        T0CONbits.TMR0ON=0; //Turn off timer
-        INTCONbits.T0IE=0; //Disable timer interrupt
+        T0CON0bits.T0EN=0; //Turn off timer
+        PIE0bits.TMR0IE=0; //Disable timer interrupt
         
     }
 }
@@ -87,14 +87,14 @@ void usart_config(void)
     //TXSTAbits.TXEN=0;           //TX off
     
     /*Interrupt Configuration*/
-    PIE1bits.RCIE=1;            //EUSART Receiving Interrupt Enable
-    PIR1bits.RCIF=0;            //Clear EUSART interruption flag
-    IPR1bits.RCIP=0;            //Low priority for EUSART  
+    PIE3bits.RC1IE = 1           //EUSART1 Receiving Interrupt Enable
+    PIR3bits.RC1IF=0;            //Clear EUSART interruption flag
+    IPR3bits.RC1IP=0;            //Low priority for EUSART  
 }
 
 inline void usart_isr(void)
 {    
-    if (PIR1bits.RCIF)
+    if (PIR3bits.RC1IF)
     {
         Copia_RCSTA.registro = RCSTA;    
         DatoRX = RCREG;
@@ -172,9 +172,9 @@ inline void usart_isr(void)
                     TMR0H = USART_TIMEOUT_H;
                     TMR0L = USART_TIMEOUT_L;
                     rx_valid = DATA_RX_VALID; //Validates data
-                    T0CONbits.TMR0ON = 1; //Turn on timer
-                    INTCONbits.T0IE = 1; //Enable timer interrupt
-                    INTCONbits.T0IF = 0; //Clear flag                       
+                    T0CON0bits.T0EN = 1; //Turn on timer
+                    PIE0bits.TMR0IE = 1; //Enable timer interrupt
+                    PIR0bits.TMR0IF = 0; //Clear flag                       
                 }
             }
             break;

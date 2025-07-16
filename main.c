@@ -25,8 +25,8 @@ void test_update(void);
 void test(void);
 
 //8 channels buffer
-unsigned char channels_data[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-unsigned char adc_buffer[NUM_CHANNELS]={0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+unsigned char channels_data[NUM_CHANNELS]={0};
+unsigned char adc_buffer[NUM_CHANNELS]={0};
 
 // User variables
 unsigned char is_test_mode;

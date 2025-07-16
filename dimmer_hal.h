@@ -27,7 +27,7 @@
 #endif
 
 /*Interruption flags*/
-#define flagZC INTCONbits.INT0IF
+#define flagZC PIR0bits.INT0IF
 #define flagT0 INTCONbits.TMR0IF
 #define flagDMX PIR1bits.RCIF
 
@@ -42,20 +42,29 @@
 #define PRELOAD                         0x26 //Maybe deprecated
 
 /*Zero crossing registers*/
-#define trisZC                          TRISB
-#define bitZC                           0
-#define interrupt_enableZC              INTCONbits.INT0IE
-#define interrupt_edgeZC                INTCON2bits.INTEDG0
+#define trisZC                          TRISE
+#define bitZC                           2
+#define interrupt_enableZC              PIE0bits.INT0IE
+#define interrupt_edgeZC                INTCONbits.INT0EDG
 #define ZC_enabled                      1
 #define ZC_rising_edge                  1
 #define ZC_falling_edge                 0
 
 /*Channel IO ports addresses*/
 /*Some compilations are deprecated*/
-volatile unsigned char* output_channels_addresses[NUM_CHANNELS] = {&PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTB, &PORTD, &PORTA, &PORTA, &PORTA, &PORTA, &PORTA, &PORTE, &PORTE, &PORTE};
-volatile unsigned char* output_channels_tris[NUM_CHANNELS] = {&TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISB, &TRISD, &TRISA, &TRISA, &TRISA, &TRISA, &TRISA, &TRISE, &TRISE, &TRISE};
-char  output_channels_bits[NUM_CHANNELS] = {7, 6, 5, 4, 3, 2, 1, 4, 0, 1, 2, 3, 5, 0, 1, 2};
+volatile unsigned char* output_channels_addresses[NUM_CHANNELS] = {&PORTB, &PORTB, &PORTA, &PORTA, &PORTC, &PORTC, &PORTD, &PORTC};
+volatile unsigned char* output_channels_tris[NUM_CHANNELS] = {&TRISB, &TRISB, &TRISA, &TRISA, &TRISC, &TRISC, &TRISD, &TRISC};
+char  output_channels_bits[NUM_CHANNELS] = {3, 4, 2, 3, 5, 4, 3, 3};
 
+
+//ch0 - RB3
+//ch1 - RB4
+//ch2 - RA2
+//ch3 - RA3
+//ch4 - RC5
+//ch5 - RC4
+//ch6 - RD3
+//ch7 - RC3
 /*HAL functions*/
 
 /*Zero crossing*/
