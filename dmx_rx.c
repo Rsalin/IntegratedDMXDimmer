@@ -43,7 +43,7 @@ void usart_timeout_timer_init(char low, char high)
     T0CON0bits.T016BIT=1;     //16 bit timer
     T0CON1bits.T0CS=2;       //T0 source Internal instruction cycle clock (CLKO) (Fosc/4)
     //RBS TODO: configure prescaler
-    IPR0.TMR0IP=0;     //Low priority
+    IPR0bits.TMR0IP=0;     //Low priority
 }
 
 inline void usart_timeout_reset(char low, char high)
@@ -73,21 +73,36 @@ void usart_config(void)
       /*USART configurations*/
     TXSTAbits.BRGH=1;           // Alta velocidad seleccionada.
     BAUDCONbits.BRG16=1;        // Baudrate de 16 bits
-    TXSTAbits.SYNC=0;           // Seleccionamos transmisión asíncrona
+    TXSTAbits.SYNC=0;           // Seleccionamos transmisiï¿½n asï¿½ncrona
     
-    SPBRG=47;                    // A 48MHz representa Baudios = 250KHz
+    SPBRG=0x1F;                    // A 32MHz representa Baudios = 250KHz
     SPBRGH=0;
-    RCSTAbits.RX9=1;            // Activada la recepción a 9 bits
-    RCSTAbits.SREN=0;           // Desactivada la recepción de un sólo byte
-    RCSTAbits.ADDEN=0;          // Desactivada la autodetección de dirección
+    RCSTAbits.RX9=1;            // Activada la recepciï¿½n a 9 bits
+    RCSTAbits.SREN=0;           // Desactivada la recepciï¿½n de un sï¿½lo byte
+    RCSTAbits.ADDEN=0;          // Desactivada la autodetecciï¿½n de direcciï¿½n
     RCSTAbits.FERR=0;           // No hay error de frame
     RCSTAbits.OERR=0;           // No hay error de overrun
     RCSTAbits.SPEN=1;           // USART activada
-    RCSTAbits.CREN=1;           // Recepción activada
+    RCSTAbits.CREN=1;           // Recepciï¿½n activada
     //TXSTAbits.TXEN=0;           //TX off
     
+    //Unlock PPS
+    GIE = 0; // Disable interrupts
+    PPSLOCK = 0x55;
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 0; // Unlock PPS
+
+    TRISCbits.TRISC1 = 1;  // Set RC1 as input
+    RXPPS = 0x11; // RC1 as EUSART1 RX input
+
+    //lock PPS
+    PPSLOCK = 0x55;
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 1; // Lock PPS
+    GIE = 1; // Re-enable interrupts
+
     /*Interrupt Configuration*/
-    PIE3bits.RC1IE = 1           //EUSART1 Receiving Interrupt Enable
+    PIE3bits.RC1IE = 1;          //EUSART1 Receiving Interrupt Enable
     PIR3bits.RC1IF=0;            //Clear EUSART interruption flag
     IPR3bits.RC1IP=0;            //Low priority for EUSART  
 }
@@ -101,8 +116,8 @@ inline void usart_isr(void)
     
         if (Copia_RCSTA.bits.OERR)
         {
-        CREN=0;
-        CREN=1;
+        RCSTAbits.CREN=0;
+        RCSTAbits.CREN=1;
         DMX_Estado = DMX_ESPERA_BYTE;
         return;
         }    
@@ -186,15 +201,14 @@ void address_init(void)
 {
     TRISD|=0x0F; //RD3-0 as inputs
     TRISC|=0x07; //RC0-2 as inputs
-    UCFG|=0x08;  //USB disabled
-    UCON&=~(0x08);
-    
 }
 
 unsigned int read_address(void)
 {
     unsigned int address;
+
     address=(PORTC&0x07)|((PORTD&0x03)<<3)|(PORTC&0x20)|((PORTC&0x10)<<2)|((PORTD&0x08)<<4); //RD3-RC4-RC5-RD1-RD0-RC2-RC1-RC0    
     address+=(((PORTD&0x04)>>2)*256);//+256*PORTDbits.RD2;
-    return ((address+ADDRESS_OFFSET>TOTALCHANNELS)?TOTALCHANNELS:(address+ADDRESS_OFFSET));
+    //return ((address+ADDRESS_OFFSET>TOTALCHANNELS)?TOTALCHANNELS:(address+ADDRESS_OFFSET));
+    return 0;
 }

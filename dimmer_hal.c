@@ -60,18 +60,23 @@ inline void zc_set_edge_direction(char direction)
  */
 void firing_timer_init(void)
 {
-    TMR3H=0;                //Timer count reset
-    TMR3L=0;
-    T3CONbits.RD16=1;       //One single 16 bit write    
-    T3CONbits.T3CKPS=0b11;  //:8 prescaler
-    T3CONbits.T3CCP2=1;     //Drives both ccps (we use only CCP1). Other option affects to other used timers
-    
-    CCPR1H=0xFF;            //Inits CCP on max compare
-    CCPR1L=0xFF;
-    CCP1CONbits.CCP1M=0b1010; //Generate interrupts on match
-    PIR1bits.CCP1IF=0;        //Clear interrupt flag    
-    
-    IPR1bits.CCP1IP=1;      //High priority for ccp match
+    TMR3H = 0;                // Reinicia el contador del Timer3
+    TMR3L = 0;
+
+    T3CONbits.RD16 = 1;       // Escritura de 16 bits
+    T3CONbits.T3CKPS0 = 1;     // 1:8 prescaler
+    T3CONbits.T3CKPS1 = 1;      
+    T3CONbits.TMR3ON = 1;     // Activa el Timer3
+
+    CCPR1H = 0xFF;            // Valor de comparación alto
+    CCPR1L = 0xFF;            // Valor de comparación bajo
+
+    CCP1CONbits.MODE = 0b1010;     // Compare mode: interrupt on match
+    CCP1CONbits.EN = 1;            // Habilita el módulo CCP1
+
+    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupción CCP1
+    PIE6bits.CCP1IE = 1;     // Habilita la interrupción CCP1
+    IPR6bits.CCP1IP = 1;     // Prioridad alta para CCP1
 }
 
 /*
@@ -79,12 +84,12 @@ void firing_timer_init(void)
  */
 inline void firing_timer_enable(void)
 {
-    TMR3H=0;            //Count reset
-    TMR3L=0;
-    PIE1bits.CCP1IE=1;  //Interrupts on
-    PIR1bits.CCP1IF=0;  //Clear interrupt flag
-    T3CONbits.TMR3ON=1; //Timer on
-    
+    TMR3H = 0;               // Reinicia el contador
+    TMR3L = 0;
+
+    PIE6bits.CCP1IE = 1;     // Habilita la interrupción CCP1
+    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupción CCP1
+    T3CONbits.TMR3ON = 1;    // Activa el Timer3
 }
 
 /*
@@ -92,8 +97,8 @@ inline void firing_timer_enable(void)
  */
 inline void firing_timer_disable(void)
 {
-    PIE1bits.CCP1IE=0;  //Interrupts off
-    T3CONbits.TMR3ON=0; //Timer off
+    PIE6bits.CCP1IE = 0;     // desabilita la interrupción CCP1
+    T3CONbits.TMR3ON = 0;    // Apaga el Timer3
 }
 
 /*
@@ -110,7 +115,7 @@ inline void firing_timer_reset(void)
  */
 inline char firing_timer_check_flag(void) 
 {
-    return (PIE1bits.CCP1IE && PIR1bits.CCP1IF);
+    return (PIE6bits.CCP1IE &&  PIR6bits.CCP1IF);
 }
 
 /*
@@ -118,7 +123,7 @@ inline char firing_timer_check_flag(void)
  */
 inline void firing_timer_clear_flag(void)
 {
-    PIR1bits.CCP1IF=0;
+    PIR6bits.CCP1IF = 0;
 }
 
 /*
@@ -152,8 +157,9 @@ inline void firing_timer_reset_period(void)
  */
 inline void freq_measuring_timer_init(void)
 {
-    T1CONbits.T1CKPS=0b10; //:4 prescaler    
-    IPR1bits.TMR1IP=1;     //High priority    
+    T1CONbits.T1CKPS0 = 0;  //:4 prescaler   
+    T1CONbits.T1CKPS1 = 1; 
+    IPR4bits.TMR1IP = 1;   // Prioridad alta para Timer1
 }
 
 /*
@@ -161,8 +167,8 @@ inline void freq_measuring_timer_init(void)
  */
 inline void freq_measuring_timer_restart (void)
 {    
-    PIE1bits.TMR1IE=1;  //Enable interrupts
-    PIR1bits.TMR1IF=0;  
+    PIE5bits.TMR1GIE = 1;   // Habilita la interrupción de Timer1
+    PIR5bits.TMR1GIF = 0;   // Limpia la bandera de interrupción de Timer1  
     TMR1H=0;            //Clear count
     TMR1L=0;
     T1CONbits.TMR1ON=1; //start timer
@@ -173,7 +179,7 @@ inline void freq_measuring_timer_restart (void)
  */
 inline unsigned char freq_measuring_timer_freeze(void)
 {
-    PIE1bits.TMR1IE=0;  //Interrupts off
+    PIE5bits.TMR1GIE=0;  //Interrupts off
     T1CONbits.TMR1ON=0; //Timer off
     return TMR1H;
 }
@@ -183,7 +189,7 @@ inline unsigned char freq_measuring_timer_freeze(void)
  */
 inline char freq_measuring_timer_check_flag(void)
 {
-    return (    PIE1bits.TMR1IE &&  PIR1bits.TMR1IF);
+    return (PIE5bits.TMR1GIE && PIR5bits.TMR1GIF);
 }
 
 /*
@@ -191,7 +197,7 @@ inline char freq_measuring_timer_check_flag(void)
  */ 
 inline void freq_measuring_timer_clear_flag(void)
 {
-    PIR1bits.TMR1IF=0; 
+    PIR5bits.TMR1GIF=0; 
 }
 
 

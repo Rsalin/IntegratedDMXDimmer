@@ -9,8 +9,7 @@
 
 #include "build_config.h"
 #include <xc.h>
-//#define _XTAL_FREQ 8000000 //Int 8 MHz
-#define _XTAL_FREQ 48000000
+#define _XTAL_FREQ 32000000
 
 #include "config.h"
 #include "dimmer.h"
@@ -18,6 +17,9 @@
 #include "dmx_rx.h"
 #include "pic18f46q10.h"
 
+
+
+void osc_test(void);
 unsigned char check_test_mode(void);
 void process_channels(void);
 void test_init(void);
@@ -40,24 +42,19 @@ enum directions
 }global_fader_direction;
 
 void main(void) {
-    // Set the CLOCK CONTROL module to the options selected in the user interface.
-    OSCCON1 = (0 << _OSCCON1_NDIV_POSN)   // NDIV 1
-        | (2 << _OSCCON1_NOSC_POSN);  // NOSC EXTOSC with 4x PLL
-    OSCCON3 = (0 << _OSCCON3_SOSCPWR_POSN)   // SOSCPWR Low power
-        | (0 << _OSCCON3_CSWHOLD_POSN);  // CSWHOLD may proceed
-    OSCEN = (0 << _OSCEN_EXTOEN_POSN)   // EXTOEN disabled
-        | (0 << _OSCEN_HFOEN_POSN)   // HFOEN disabled
-        | (0 << _OSCEN_MFOEN_POSN)   // MFOEN disabled
-        | (0 << _OSCEN_LFOEN_POSN)   // LFOEN disabled
-        | (0 << _OSCEN_SOSCEN_POSN)   // SOSCEN disabled
-        | (0 << _OSCEN_ADOEN_POSN);  // ADOEN disabled
-    OSCFRQ = (8 << _OSCFRQ_HFFRQ_POSN);  // HFFRQ 64_MHz
-    OSCTUNE = (0 << _OSCTUNE_TUN_POSN);  // TUN 0x0
+    // 1. Set up OSCCON1 for External Osc with 4x PLL
+    // NOSC = 0b010 (External Osc), NDIV = 0b0000 (Divide by 1)
+    OSCCON1 = 0x20;
 
-    //Wait for PLL to stabilize
-    while( OSCSTATbits.PLLR == 0)
-    {
-    }
+    // 2. Explicitly power up the External Oscillator circuit
+    OSCENbits.EXTOEN = 1;
+
+    // 3. Wait for Hardware Stability
+    // Wait for the Crystal to physically start vibrating
+    while(!OSCSTATbits.EXTOR); 
+    
+    // Wait for the PLL to lock onto the 8MHz and multiply it
+    while(!OSCSTATbits.PLLR); 
     
 #ifdef debug
     TRISDbits.TRISD0=0;
@@ -327,4 +324,16 @@ void test(void)
         
     }
     
+}
+
+void osc_test(void) {
+    //Output Clock to Pin (RB3) for verification
+    TRISBbits.TRISB3 = 0;
+    ANSELBbits.ANSELB3 = 0;
+    LATBbits.LATB3 = 0; // Turn off RB3 initially
+
+    while(1) {
+        LATBbits.LATB3 = 1;
+        LATBbits.LATB3 = 0;
+    }    
 }
