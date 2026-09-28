@@ -41,14 +41,24 @@
 #define firing_high_priority            1
 #define PRELOAD                         0x26 //Maybe deprecated
 
-/*Zero crossing registers*/
+/*Zero crossing registers
 #define trisZC                          TRISE
 #define bitZC                           2
 #define interrupt_enableZC              PIE0bits.INT0IE
 #define interrupt_edgeZC                INTCONbits.INT0EDG
 #define ZC_enabled                      1
 #define ZC_rising_edge                  1
-#define ZC_falling_edge                 0
+#define ZC_falling_edge                 0*/
+
+/* Zero crossing registers adaptados al Q10 */
+#define trisZC                  TRISE          // Registro de dirección
+#define bitZC                   2              // Número del pin en el Puerto E
+#define interrupt_enableZC      PIE0bits.INT0IE
+#define interrupt_flagZC        PIR0bits.INT0IF
+#define interrupt_edgeZC        INTCONbits.INT0EDG // IMPORTANTE: En el Q10 es INTCON0
+#define ZC_enabled              1
+#define ZC_rising_edge          1
+#define ZC_falling_edge         0
 
 /*Channel IO ports addresses*/
 /*Some compilations are deprecated*/
@@ -69,7 +79,7 @@ char  output_channels_bits[NUM_CHANNELS] = {3, 4, 2, 3, 5, 4, 3, 3};
 
 /*Zero crossing*/
 void zc_init(void);
-inline char zc_check_flag(void);
+inline char zc_isr(void);
 inline void zc_clear_flag(void);
 inline void zc_set_edge_direction(char direction);
 

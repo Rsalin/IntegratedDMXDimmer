@@ -9,9 +9,7 @@
 
 #include "build_config.h"
 #include <xc.h>
-#define _XTAL_FREQ 32000000
 
-#include "config.h"
 #include "dimmer.h"
 #include "dimmer_hal.h"
 #include "dmx_rx.h"
@@ -61,6 +59,16 @@ void main(void) {
     PORTDbits.RD0=0;
 #endif
     
+    PPSLOCK = 0x55;
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 0;
+
+    INT0PPS = 0x23; // Conecta el periférico INT0 al pin físico RE3 (Port E, bit 3)
+
+    PPSLOCK = 0x55;
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 1;
+
     is_test_mode = check_test_mode();
     dimmer_init (channels_data, NUM_CHANNELS);
     usart_config();

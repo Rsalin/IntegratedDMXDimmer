@@ -58,25 +58,36 @@ inline void zc_set_edge_direction(char direction)
  * Initializes slot counter timer to produce an interrupt each time the slot time has passed.
  * Uses CCP as output comparator and timer 3 as timebase.
  */
-void firing_timer_init(void)
+void firing_timer_init(void)//TODO DECIDIR Frecuencia reloj
 {
+    // 1. Configuraciï¿½n del Reloj del Timer3
+    T3CLKbits.CS = 0b0001;    // Selecciona Fosc/4 (16 MHz a 64MHz de Fosc)
+  
+    T3CONbits.RD16 = 1;       // Escritura de 16 bits
+    T3CONbits.CKPS = 0b11; // Prescaler 1:8
+    
     TMR3H = 0;                // Reinicia el contador del Timer3
     TMR3L = 0;
+    
+    // 3. Vincular CCP1 al Timer3
+    // En el Q10, el registro CCPTMRS0 controla quï¿½ timer usa cada CCP
+    CCPTMRSbits.C1TSEL = 0b10; // 0b10 selecciona el Timer3 para el mï¿½dulo CCP1
 
-    T3CONbits.RD16 = 1;       // Escritura de 16 bits
-    T3CONbits.T3CKPS0 = 1;     // 1:8 prescaler
-    T3CONbits.T3CKPS1 = 1;      
-    T3CONbits.TMR3ON = 1;     // Activa el Timer3
-
-    CCPR1H = 0xFF;            // Valor de comparación alto
-    CCPR1L = 0xFF;            // Valor de comparación bajo
+    // 4. Configuraciï¿½n del mï¿½dulo CCP1
+    CCP1CONbits.MODE = 0b1010; // Compare mode: genera interrupciï¿½n al coincidir (match)
+    CCP1CONbits.EN = 1;        // Habilita el mï¿½dulo CCP1
+    
+    CCPR1H = 0xFF;             // Valor inicial de comparaciï¿½n
+    CCPR1L = 0xFF;
 
     CCP1CONbits.MODE = 0b1010;     // Compare mode: interrupt on match
-    CCP1CONbits.EN = 1;            // Habilita el módulo CCP1
+    CCP1CONbits.EN = 1;            // Habilita el mï¿½dulo CCP1
 
-    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupción CCP1
-    PIE6bits.CCP1IE = 1;     // Habilita la interrupción CCP1
+    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupciï¿½n CCP1
+    PIE6bits.CCP1IE = 1;     // Habilita la interrupciï¿½n CCP1
     IPR6bits.CCP1IP = 1;     // Prioridad alta para CCP1
+    
+    T3CONbits.ON = 1;          // Activa el Timer3
 }
 
 /*
@@ -87,8 +98,8 @@ inline void firing_timer_enable(void)
     TMR3H = 0;               // Reinicia el contador
     TMR3L = 0;
 
-    PIE6bits.CCP1IE = 1;     // Habilita la interrupción CCP1
-    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupción CCP1
+    PIE6bits.CCP1IE = 1;     // Habilita la interrupciï¿½n CCP1
+    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupciï¿½n CCP1
     T3CONbits.TMR3ON = 1;    // Activa el Timer3
 }
 
@@ -97,7 +108,7 @@ inline void firing_timer_enable(void)
  */
 inline void firing_timer_disable(void)
 {
-    PIE6bits.CCP1IE = 0;     // desabilita la interrupción CCP1
+    PIE6bits.CCP1IE = 0;     // desabilita la interrupciï¿½n CCP1
     T3CONbits.TMR3ON = 0;    // Apaga el Timer3
 }
 
@@ -167,8 +178,8 @@ inline void freq_measuring_timer_init(void)
  */
 inline void freq_measuring_timer_restart (void)
 {    
-    PIE5bits.TMR1GIE = 1;   // Habilita la interrupción de Timer1
-    PIR5bits.TMR1GIF = 0;   // Limpia la bandera de interrupción de Timer1  
+    PIE5bits.TMR1GIE = 1;   // Habilita la interrupciï¿½n de Timer1
+    PIR5bits.TMR1GIF = 0;   // Limpia la bandera de interrupciï¿½n de Timer1  
     TMR1H=0;            //Clear count
     TMR1L=0;
     T1CONbits.TMR1ON=1; //start timer

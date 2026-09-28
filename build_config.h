@@ -21,7 +21,13 @@
 #pragma config CSWEN = ON       // Clock Switch Enable (Allows OSCCON1 changes)
 #pragma config FCMEN = ON       // Fail-Safe Clock Monitor (Good for debugging crystals)
 
-#define _XTAL_FREQ 32000000
+
+// CONFIG2L
+#pragma config MCLRE = INTMCLR  // LIBERA RE3: Ahora puedes usarlo para el cruce por cero
+#pragma config PWRTE = OFF  // Power-up Timer Enable bit
+#pragma config BOREN = ON
+
+#define _XTAL_FREQ 48000000
 
 #define NUM_CHANNELS 8
 

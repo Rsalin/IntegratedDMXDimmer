@@ -75,7 +75,7 @@ void usart_config(void)
     BAUDCONbits.BRG16=1;        // Baudrate de 16 bits
     TXSTAbits.SYNC=0;           // Seleccionamos transmisiï¿½n asï¿½ncrona
     
-    SPBRG=0x1F;                    // A 32MHz representa Baudios = 250KHz
+    SPBRG=0x3F;                 // A 64Mhz representa Baudios = 250KHz
     SPBRGH=0;
     RCSTAbits.RX9=1;            // Activada la recepciï¿½n a 9 bits
     RCSTAbits.SREN=0;           // Desactivada la recepciï¿½n de un sï¿½lo byte
@@ -93,7 +93,8 @@ void usart_config(void)
     PPSLOCKbits.PPSLOCKED = 0; // Unlock PPS
 
     TRISCbits.TRISC1 = 1;  // Set RC1 as input
-    RXPPS = 0x11; // RC1 as EUSART1 RX input
+    ANSELCbits.ANSELC1 = 0; //Make RC1 as digital input
+    RX1PPS = 0x11; // RC1 as EUSART1 RX input
 
     //lock PPS
     PPSLOCK = 0x55;
@@ -212,3 +213,49 @@ unsigned int read_address(void)
     //return ((address+ADDRESS_OFFSET>TOTALCHANNELS)?TOTALCHANNELS:(address+ADDRESS_OFFSET));
     return 0;
 }
+
+/* TODO implementar más adelante
+void __interrupt(low_priority) dmx_isr(void) {
+    // Verificar si la interrupción fue por la UART1
+    if (PIR3bits.RC1IF) {
+        
+        // 1. Manejo de Errores de Overrun (OERR)
+        // Ocurre si no leemos a tiempo. Bloquea la recepción.
+        if (RCSTA1bits.OERR) {
+            RCSTA1bits.CREN = 0; // Resetear el módulo
+            RCSTA1bits.CREN = 1;
+            dmx_byte_count = 0;   // Reiniciar contador por seguridad
+            return;
+        }
+
+        // 2. Detección de BREAK (Error de Frame + Dato 0)
+        // El Break es un pulso bajo largo que genera un FERR.
+        if (RCSTA1bits.FERR) {
+            unsigned char dummy = RC1REG; // Leer para limpiar el error
+            dmx_byte_count = 0;           // El siguiente byte será el Start Code
+            dmx_ready = 0;                // Estamos empezando a recibir
+            return;
+        }
+
+        // 3. Recepción de Datos
+        unsigned char incoming_byte = RC1REG; // Leer el dato recibido
+
+        if (dmx_byte_count == 0) {
+            // El primer byte tras el Break es el START CODE
+            // DMX estándar usa 0x00. Si es distinto, ignoramos el paquete.
+            if (incoming_byte == 0x00) {
+                dmx_byte_count = 1;
+            } else {
+                dmx_byte_count = 513; // Valor fuera de rango para ignorar trama
+            }
+        } else if (dmx_byte_count <= 512) {
+            // Guardar el dato en tu array si coincide con tu dirección
+            // Supongamos que tu dimmer empieza en la dirección 'dmx_address'
+            if (dmx_byte_count >= dmx_address && dmx_byte_count < (dmx_address + NUM_CHANNELS)) {
+                dmx_data[dmx_byte_count - dmx_address] = incoming_byte;
+            }
+            dmx_byte_count++;
+        }
+    }
+}
+ * */
