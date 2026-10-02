@@ -14,22 +14,36 @@
     #define inline
 #endif
 
+/*
+ * Channel IO tables. Outputs are written through LATx: on the Q10 reading
+ * PORTx returns the pin level (0 on analog pins), so read-modify-write on
+ * PORTx could clear other channels of the same port.
+ */
+volatile unsigned char* const output_channels_latches[NUM_CHANNELS] = {&LATB, &LATB, &LATA, &LATA, &LATC, &LATC, &LATD, &LATC};
+volatile unsigned char* const output_channels_tris[NUM_CHANNELS] = {&TRISB, &TRISB, &TRISA, &TRISA, &TRISC, &TRISC, &TRISD, &TRISC};
+volatile unsigned char* const output_channels_ansel[NUM_CHANNELS] = {&ANSELB, &ANSELB, &ANSELA, &ANSELA, &ANSELC, &ANSELC, &ANSELD, &ANSELC};
+const unsigned char output_channels_masks[NUM_CHANNELS] = {1<<3, 1<<4, 1<<2, 1<<3, 1<<5, 1<<4, 1<<3, 1<<3};
+
 /*ZERO CROSSING FUNCTIONS*/
 
 /*
- * Initializes Zero crossing external interrupt pin
+ * Initializes Zero crossing interrupt-on-change pin (RE2)
  */
 void zc_init(void)
 {
-    trisZC |= (1<<bitZC); //set as input pin
-    interrupt_enableZC = ZC_enabled; //Enables interrupts (always high priority)
-    interrupt_edgeZC = ZC_rising_edge; //Sets first valid edge as a rising edge
+    trisZC = 1;  //set as input pin
+    anselZC = 0; //digital input buffer enabled
+    ioc_negative_edgeZC = 0; //Sets first valid edge as a rising edge
+    ioc_positive_edgeZC = 1;
+    flagZC = 0;
+    priorityZC = 1; //High priority
+    interrupt_enableZC = ZC_enabled; //Enables interrupts
 }
 
 /*
  * Checks Zero crossing interrupt flag
  */
-inline char zc_check_flag(void) 
+inline char zc_check_flag(void)
 {
     return (flagZC && interrupt_enableZC);
 }
@@ -48,7 +62,16 @@ inline void zc_clear_flag(void)
  */
 inline void zc_set_edge_direction(char direction)
 {
-    interrupt_edgeZC=direction;
+    if (direction == ZC_rising_edge)
+    {
+        ioc_negative_edgeZC = 0;
+        ioc_positive_edgeZC = 1;
+    }
+    else
+    {
+        ioc_positive_edgeZC = 0;
+        ioc_negative_edgeZC = 1;
+    }
     flagZC=0;
 }
 
@@ -56,38 +79,31 @@ inline void zc_set_edge_direction(char direction)
 
 /*
  * Initializes slot counter timer to produce an interrupt each time the slot time has passed.
- * Uses CCP as output comparator and timer 3 as timebase.
+ * Uses CCP1 as output comparator and timer 3 as timebase.
+ * Timer3 runs at Fosc/4 / 8 = 2 MHz, half the freq measuring timer clock (4 MHz),
+ * so a period equal to TMR1H gives 128 slots per measured half cycle.
  */
-void firing_timer_init(void)//TODO DECIDIR Frecuencia reloj
+void firing_timer_init(void)
 {
-    // 1. Configuraci�n del Reloj del Timer3
-    T3CLKbits.CS = 0b0001;    // Selecciona Fosc/4 (16 MHz a 64MHz de Fosc)
-  
-    T3CONbits.RD16 = 1;       // Escritura de 16 bits
-    T3CONbits.CKPS = 0b11; // Prescaler 1:8
-    
-    TMR3H = 0;                // Reinicia el contador del Timer3
+    T3CON = 0;                //Timer off
+    T3GCON = 0;               //No gate
+    T3CLKbits.CS = 0b0001;    //Fosc/4 (16 MHz)
+    T3CONbits.CKPS = 0b11;    //:8 prescaler
+    T3CONbits.RD16 = 1;       //One single 16 bit write (TMR3H first)
+    TMR3H = 0;                //Timer count reset
     TMR3L = 0;
-    
-    // 3. Vincular CCP1 al Timer3
-    // En el Q10, el registro CCPTMRS0 controla qu� timer usa cada CCP
-    CCPTMRSbits.C1TSEL = 0b10; // 0b10 selecciona el Timer3 para el m�dulo CCP1
 
-    // 4. Configuraci�n del m�dulo CCP1
-    CCP1CONbits.MODE = 0b1010; // Compare mode: genera interrupci�n al coincidir (match)
-    CCP1CONbits.EN = 1;        // Habilita el m�dulo CCP1
-    
-    CCPR1H = 0xFF;             // Valor inicial de comparaci�n
+    CCPTMRSbits.C1TSEL = 0b10; //CCP1 compare based on Timer3
+
+    CCPR1H = 0xFF;            //Inits CCP on max compare
     CCPR1L = 0xFF;
+    CCP1CON = 0;
+    CCP1CONbits.MODE = 0b1010; //Compare mode: interrupt on match (CCP1 not routed to any pin)
+    CCP1CONbits.EN = 1;
 
-    CCP1CONbits.MODE = 0b1010;     // Compare mode: interrupt on match
-    CCP1CONbits.EN = 1;            // Habilita el m�dulo CCP1
-
-    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupci�n CCP1
-    PIE6bits.CCP1IE = 1;     // Habilita la interrupci�n CCP1
-    IPR6bits.CCP1IP = 1;     // Prioridad alta para CCP1
-    
-    T3CONbits.ON = 1;          // Activa el Timer3
+    PIE6bits.CCP1IE = 0;      //Enabled by firing_timer_enable()
+    PIR6bits.CCP1IF = 0;      //Clear interrupt flag
+    IPR6bits.CCP1IP = 1;      //High priority for ccp match
 }
 
 /*
@@ -95,12 +111,11 @@ void firing_timer_init(void)//TODO DECIDIR Frecuencia reloj
  */
 inline void firing_timer_enable(void)
 {
-    TMR3H = 0;               // Reinicia el contador
+    TMR3H = 0;               //Count reset
     TMR3L = 0;
-
-    PIE6bits.CCP1IE = 1;     // Habilita la interrupci�n CCP1
-    PIR6bits.CCP1IF = 0;     // Limpia la bandera de interrupci�n CCP1
-    T3CONbits.TMR3ON = 1;    // Activa el Timer3
+    PIE6bits.CCP1IE = 1;     //Interrupts on
+    PIR6bits.CCP1IF = 0;     //Clear interrupt flag
+    T3CONbits.ON = 1;        //Timer on
 }
 
 /*
@@ -108,8 +123,8 @@ inline void firing_timer_enable(void)
  */
 inline void firing_timer_disable(void)
 {
-    PIE6bits.CCP1IE = 0;     // desabilita la interrupci�n CCP1
-    T3CONbits.TMR3ON = 0;    // Apaga el Timer3
+    PIE6bits.CCP1IE = 0;     //Interrupts off
+    T3CONbits.ON = 0;        //Timer off
 }
 
 /*
@@ -124,9 +139,9 @@ inline void firing_timer_reset(void)
 /*
  * Checks firing timer flag
  */
-inline char firing_timer_check_flag(void) 
+inline char firing_timer_check_flag(void)
 {
-    return (PIE6bits.CCP1IE &&  PIR6bits.CCP1IF);
+    return (PIE6bits.CCP1IE && PIR6bits.CCP1IF);
 }
 
 /*
@@ -142,7 +157,7 @@ inline void firing_timer_clear_flag(void)
  * Each time the period has passed, one slot is incremented
  * Period is shifted straight away to the low register
  */
-inline void firing_timer_update_period(char period)
+inline void firing_timer_update_period(unsigned char period)
 {
     CCPR1H=0;       //First High, second low to allow a proper reset
     CCPR1L=period;
@@ -165,24 +180,29 @@ inline void firing_timer_reset_period(void)
  * This allows a dynamic frecuency measurement.
  * If it overflows means that zero crossing hasn't appeard,indicating that mains has gone away.
  * It is important to allow a full measurement range for the lowest frequency value without overflowing.
+ * Timer1 runs at Fosc/4 / 4 = 4 MHz: overflows after 16.4 ms (10 ms half cycle @50Hz -> TMR1H ~156)
  */
 inline void freq_measuring_timer_init(void)
 {
-    T1CONbits.T1CKPS0 = 0;  //:4 prescaler   
-    T1CONbits.T1CKPS1 = 1; 
-    IPR4bits.TMR1IP = 1;   // Prioridad alta para Timer1
+    T1CON = 0;              //Timer off, RD16=0 so TMR1H can be read alone
+    T1GCON = 0;             //No gate
+    T1CLKbits.CS = 0b0001;  //Fosc/4 (reset value selects the T1CKI pin)
+    T1CONbits.CKPS = 0b10;  //:4 prescaler
+    PIE4bits.TMR1IE = 0;    //Enabled by freq_measuring_timer_restart()
+    PIR4bits.TMR1IF = 0;
+    IPR4bits.TMR1IP = 1;    //High priority
 }
 
 /*
  * Restarts frequency measuring timer
  */
 inline void freq_measuring_timer_restart (void)
-{    
-    PIE5bits.TMR1GIE = 1;   // Habilita la interrupci�n de Timer1
-    PIR5bits.TMR1GIF = 0;   // Limpia la bandera de interrupci�n de Timer1  
+{
+    PIE4bits.TMR1IE=1;  //Enable interrupts
+    PIR4bits.TMR1IF=0;
     TMR1H=0;            //Clear count
     TMR1L=0;
-    T1CONbits.TMR1ON=1; //start timer
+    T1CONbits.ON=1;     //start timer
 }
 
 /*
@@ -190,8 +210,8 @@ inline void freq_measuring_timer_restart (void)
  */
 inline unsigned char freq_measuring_timer_freeze(void)
 {
-    PIE5bits.TMR1GIE=0;  //Interrupts off
-    T1CONbits.TMR1ON=0; //Timer off
+    PIE4bits.TMR1IE=0;  //Interrupts off
+    T1CONbits.ON=0;     //Timer off
     return TMR1H;
 }
 
@@ -200,15 +220,15 @@ inline unsigned char freq_measuring_timer_freeze(void)
  */
 inline char freq_measuring_timer_check_flag(void)
 {
-    return (PIE5bits.TMR1GIE && PIR5bits.TMR1GIF);
+    return (PIE4bits.TMR1IE && PIR4bits.TMR1IF);
 }
 
 /*
  * Clears measuring timer overflow flag
- */ 
+ */
 inline void freq_measuring_timer_clear_flag(void)
 {
-    PIR5bits.TMR1GIF=0; 
+    PIR4bits.TMR1IF=0;
 }
 
 
@@ -220,14 +240,13 @@ inline void freq_measuring_timer_clear_flag(void)
  */
 void channels_init (void)
 {
-    {
-    int i;
+    unsigned char i;
     for (i=0; i<NUM_CHANNELS; ++i)
     {
-        *(output_channels_tris[i])&=~(1<<output_channels_bits[i]);
-        *(output_channels_addresses[i])&=~(1<<output_channels_bits[i]);
+        *(output_channels_latches[i])&=(unsigned char)~output_channels_masks[i];
+        *(output_channels_ansel[i])&=(unsigned char)~output_channels_masks[i];
+        *(output_channels_tris[i])&=(unsigned char)~output_channels_masks[i];
     }
-}
 }
 
 /*
@@ -235,10 +254,10 @@ void channels_init (void)
  */
 inline void turn_all_off(void)
 {
-    int i;
+    unsigned char i;
     for (i=0; i<NUM_CHANNELS; ++i)
     {
-        *(output_channels_addresses[i])&=~(1<<output_channels_bits[i]);
+        *(output_channels_latches[i])&=(unsigned char)~output_channels_masks[i];
     }
 }
 
@@ -248,12 +267,12 @@ inline void turn_all_off(void)
  */
 inline void fire_all(unsigned char count, unsigned char* fire_tresholds)
 {
-    int i;
+    unsigned char i;
     for (i=0; i<NUM_CHANNELS; ++i)
     {
         if (count>=fire_tresholds[i])
         {
-            *(output_channels_addresses[i])|=(1<<output_channels_bits[i]);
+            *(output_channels_latches[i])|=output_channels_masks[i];
         }
     }
 }

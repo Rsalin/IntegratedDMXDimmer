@@ -33,20 +33,26 @@ volatile enum
     
 }DMX_Estado;
 
+volatile unsigned char TramaDMX[TOTALCHANNELS]={0}; //Rx buffer
+volatile unsigned int address;                    //Address variable
+volatile rx_valid_t rx_valid;
+
 volatile unsigned char DatoRX;                           
 volatile unsigned int DMX_Indice, DMX_RX_buffer_index;
 
-void usart_timeout_timer_init(char low, char high)
+void usart_timeout_timer_init(unsigned char low, unsigned char high)
 {
-    TMR0H=high;
-    TMR0L=low;
+    T0CON0 = 0;               //Timer off, postscaler 1:1
     T0CON0bits.T016BIT=1;     //16 bit timer
-    T0CON1bits.T0CS=2;       //T0 source Internal instruction cycle clock (CLKO) (Fosc/4)
-    //RBS TODO: configure prescaler
-    IPR0bits.TMR0IP=0;     //Low priority
+    T0CON1bits.T0CS=0b010;    //T0 source Fosc/4 (16 MHz)
+    T0CON1bits.T0ASYNC=0;     //Synchronized to Fosc/4
+    T0CON1bits.T0CKPS=0b1000; //:256 prescaler
+    TMR0H=high;               //High first: it is latched when TMR0L is written
+    TMR0L=low;
+    IPR0bits.TMR0IP=0;        //Low priority
 }
 
-inline void usart_timeout_reset(char low, char high)
+inline void usart_timeout_reset(unsigned char low, unsigned char high)
 {
     TMR0H=high;
     TMR0L=low;
@@ -63,62 +69,57 @@ inline void usart_timeout_isr(void)
         rx_valid=DATA_RX_INVALID; //Invalidates data
         T0CON0bits.T0EN=0; //Turn off timer
         PIE0bits.TMR0IE=0; //Disable timer interrupt
-        
+        PIR0bits.TMR0IF=0; //Clear flag
     }
 }
 
 
 void usart_config(void)
 {
+    /*RX pin: RC1 (USART_RX). Called before interrupts are enabled*/
+    TRISCbits.TRISC1 = 1;   // Set RC1 as input
+    ANSELCbits.ANSELC1 = 0; // Make RC1 a digital input
+
+    PPSLOCK = 0x55;         // Unlock sequence
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 0;
+    RX1PPS = 0x11;          // RC1 -> EUSART1 RX (PORTC = 0b10, pin 1)
+    PPSLOCK = 0x55;         // Lock sequence
+    PPSLOCK = 0xAA;
+    PPSLOCKbits.PPSLOCKED = 1;
+
       /*USART configurations*/
-    TXSTAbits.BRGH=1;           // Alta velocidad seleccionada.
-    BAUDCONbits.BRG16=1;        // Baudrate de 16 bits
-    TXSTAbits.SYNC=0;           // Seleccionamos transmisiï¿½n asï¿½ncrona
+    TX1STAbits.BRGH=1;          // Alta velocidad seleccionada.
+    BAUD1CONbits.BRG16=1;       // Baudrate de 16 bits
+    TX1STAbits.SYNC=0;          // Seleccionamos transmisión asíncrona
     
-    SPBRG=0x3F;                 // A 64Mhz representa Baudios = 250KHz
-    SPBRGH=0;
-    RCSTAbits.RX9=1;            // Activada la recepciï¿½n a 9 bits
-    RCSTAbits.SREN=0;           // Desactivada la recepciï¿½n de un sï¿½lo byte
-    RCSTAbits.ADDEN=0;          // Desactivada la autodetecciï¿½n de direcciï¿½n
-    RCSTAbits.FERR=0;           // No hay error de frame
-    RCSTAbits.OERR=0;           // No hay error de overrun
-    RCSTAbits.SPEN=1;           // USART activada
-    RCSTAbits.CREN=1;           // Recepciï¿½n activada
-    //TXSTAbits.TXEN=0;           //TX off
+    SP1BRGL=63;                 // Fosc/(4*(63+1)) = 64MHz/256 = 250 kbaud
+    SP1BRGH=0;
+    RC1STAbits.RX9=1;           // Activada la recepción a 9 bits
+    RC1STAbits.SREN=0;          // Desactivada la recepción de un sólo byte
+    RC1STAbits.ADDEN=0;         // Desactivada la autodetección de dirección
+    RC1STAbits.SPEN=1;          // USART activada
+    RC1STAbits.CREN=1;          // Recepción activada
+    //TX1STAbits.TXEN=0;          //TX off
     
-    //Unlock PPS
-    GIE = 0; // Disable interrupts
-    PPSLOCK = 0x55;
-    PPSLOCK = 0xAA;
-    PPSLOCKbits.PPSLOCKED = 0; // Unlock PPS
-
-    TRISCbits.TRISC1 = 1;  // Set RC1 as input
-    ANSELCbits.ANSELC1 = 0; //Make RC1 as digital input
-    RX1PPS = 0x11; // RC1 as EUSART1 RX input
-
-    //lock PPS
-    PPSLOCK = 0x55;
-    PPSLOCK = 0xAA;
-    PPSLOCKbits.PPSLOCKED = 1; // Lock PPS
-    GIE = 1; // Re-enable interrupts
+    DMX_Estado = DMX_ESPERA_BREAK;
 
     /*Interrupt Configuration*/
-    PIE3bits.RC1IE = 1;          //EUSART1 Receiving Interrupt Enable
-    PIR3bits.RC1IF=0;            //Clear EUSART interruption flag
     IPR3bits.RC1IP=0;            //Low priority for EUSART  
+    PIE3bits.RC1IE = 1;          //EUSART1 Receiving Interrupt Enable
 }
 
 inline void usart_isr(void)
 {    
     if (PIR3bits.RC1IF)
     {
-        Copia_RCSTA.registro = RCSTA;    
-        DatoRX = RCREG;
+        Copia_RCSTA.registro = RC1STA;  //FERR/RX9D of the byte on top of the FIFO: read before RC1REG
+        DatoRX = RC1REG;
     
         if (Copia_RCSTA.bits.OERR)
         {
-        RCSTAbits.CREN=0;
-        RCSTAbits.CREN=1;
+        RC1STAbits.CREN=0;
+        RC1STAbits.CREN=1;
         DMX_Estado = DMX_ESPERA_BYTE;
         return;
         }    
@@ -198,20 +199,28 @@ inline void usart_isr(void)
     }
 }
 
+/*
+ * DMX address DIP switch (9 bits)
+ * addr0-1: RC6-RC7, addr2-5: RD4-RD7, addr6-8: RB0-RB2
+ */
 void address_init(void)
 {
-    TRISD|=0x0F; //RD3-0 as inputs
-    TRISC|=0x07; //RC0-2 as inputs
+    TRISC|=0xC0;   //RC6-7 as inputs
+    ANSELC&=0x3F;
+    TRISD|=0xF0;   //RD4-7 as inputs
+    ANSELD&=0x0F;
+    TRISB|=0x07;   //RB0-2 as inputs
+    ANSELB&=0xF8;
 }
 
 unsigned int read_address(void)
 {
     unsigned int address;
 
-    address=(PORTC&0x07)|((PORTD&0x03)<<3)|(PORTC&0x20)|((PORTC&0x10)<<2)|((PORTD&0x08)<<4); //RD3-RC4-RC5-RD1-RD0-RC2-RC1-RC0    
-    address+=(((PORTD&0x04)>>2)*256);//+256*PORTDbits.RD2;
-    //return ((address+ADDRESS_OFFSET>TOTALCHANNELS)?TOTALCHANNELS:(address+ADDRESS_OFFSET));
-    return 0;
+    address=(unsigned int)((PORTC>>6)&0x03);          //addr0-1
+    address|=(unsigned int)((PORTD>>4)&0x0F)<<2;      //addr2-5
+    address|=(unsigned int)(PORTB&0x07)<<6;           //addr6-8
+    return ((address+ADDRESS_OFFSET>TOTALCHANNELS)?TOTALCHANNELS:(address+ADDRESS_OFFSET));
 }
 
 /* TODO implementar más adelante

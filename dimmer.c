@@ -33,6 +33,9 @@ typedef enum
     DIMMER_FIRING                   //Dimmer is firing channels and remeasuring frequency
 }states;
 
+//Linear firing rom (see dimmer.h)
+const unsigned char firing_map[256] = {255, 238, 232, 227, 224, 221, 218, 216, 214, 212, 210, 208, 207, 205, 204, 202, 201, 200, 198, 197, 196, 195, 194, 193, 192, 191, 190, 189, 188, 187, 186, 185, 184, 183, 182, 181, 180, 180, 179, 178, 177, 176, 176, 175, 174, 173, 173, 172, 171, 170, 170, 169, 168, 168, 167, 166, 166, 165, 164, 164, 163, 162, 162, 161, 160, 160, 159, 158, 158, 157, 157, 156, 155, 155, 154, 154, 153, 152, 152, 151, 151, 150, 149, 149, 148, 148, 147, 147, 146, 145, 145, 144, 144, 143, 143, 142, 141, 141, 140, 140, 139, 139, 138, 138, 137, 136, 136, 135, 135, 134, 134, 133, 133, 132, 132, 131, 131, 130, 129, 129, 128, 128, 127, 127, 126, 126, 125, 125, 124, 124, 123, 123, 122, 121, 121, 120, 120, 119, 119, 118, 118, 117, 117, 116, 116, 115, 114, 114, 113, 113, 112, 112, 111, 111, 110, 110, 109, 108, 108, 107, 107, 106, 106, 105, 105, 104, 103, 103, 102, 102, 101, 101, 100, 99, 99, 98, 98, 97, 96, 96, 95, 95, 94, 93, 93, 92, 92, 91, 90, 90, 89, 89, 88, 87, 87, 86, 85, 85, 84, 83, 83, 82, 81, 81, 80, 79, 78, 78, 77, 76, 75, 75, 74, 73, 72, 72, 71, 70, 69, 68, 68, 67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 50, 49, 48, 46, 45, 44, 42, 40, 39, 37, 35, 33, 31, 28, 25, 22, 17, 11, 0};
+
 unsigned char slot_counter;                          //AC firing slot counter
 unsigned char fire_tresholds_buffer[NUM_CHANNELS];   //Channel's slots where it has to be fired
 states dimmer_status;                       //State variable
@@ -44,10 +47,17 @@ states dimmer_status;                       //State variable
  */
 void set_fire_tresholds_buffer(unsigned char* data, unsigned char data_length)
 {
-    char i;
+    unsigned char i;
     for (i=0; i<data_length && i<NUM_CHANNELS; ++i )
     {
-        fire_tresholds_buffer[i]=(firing_map[data[i]]>>1); //128 dimming steps
+        if (data[i] == 0)
+        {
+            fire_tresholds_buffer[i]=NEVER_FIRE_SLOT; //Channel off: never fired
+        }
+        else
+        {
+            fire_tresholds_buffer[i]=(firing_map[data[i]]>>1); //128 dimming steps
+        }
     }
 }
 

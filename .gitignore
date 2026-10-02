@@ -1,0 +1,27 @@
+# MPLAB X build output
+/build/
+/dist/
+/debug/
+
+# MPLAB X generated / per-machine project files
+# (keep nbproject/configurations.xml and nbproject/project.xml)
+/nbproject/private/
+/nbproject/Makefile-*.mk
+/nbproject/Makefile-genesis.properties
+/nbproject/Package-*.bash
+
+# MPLAB X / debugger logs
+*.log
+*.log.inx
+defmplabxtrace.*
+
+# MCC (no longer used by this project)
+/mcc_generated_files/
+*.mc3
+mcc-manifest-*.yml
+
+# Editor / OS
+.vscode/
+*.bak
+*~
+Thumbs.db

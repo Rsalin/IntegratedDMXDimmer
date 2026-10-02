@@ -225,6 +225,67 @@
 // Use project enums instead of #define for ON and OFF.
 #endif
 
+#if defined(_18F46Q10)
+// PIC18F46Q10 Configuration Bit Settings
+// 16 MHz crystal on RA6/RA7, 4x PLL -> 64 MHz system clock
+
+// CONFIG1L
+#pragma config FEXTOSC = HS     // HS crystal oscillator above 8 MHz
+#pragma config RSTOSC = EXTOSC_4PLL // Power-up with EXTOSC x 4 PLL (16 MHz -> 64 MHz)
+
+// CONFIG1H
+#pragma config CLKOUTEN = OFF   // CLKOUT disabled (RA6 used by the crystal)
+#pragma config CSWEN = ON       // Writing to NOSC and NDIV is allowed
+#pragma config FCMEN = ON       // Fail-Safe Clock Monitor enabled
+
+// CONFIG2L
+#pragma config MCLRE = EXTMCLR  // RE3 is MCLR (ICSP_MCLR on the board)
+#pragma config PWRTE = OFF      // Power-up Timer disabled
+#pragma config LPBOREN = OFF    // Low-power BOR disabled
+#pragma config BOREN = SBORDIS  // Brown-out Reset enabled, SBOREN ignored
+
+// CONFIG2H
+#pragma config BORV = VBOR_270  // Brown-out Reset voltage 2.70V
+#pragma config ZCD = OFF        // ZCD disabled (can be enabled by ZCDSEN)
+#pragma config PPS1WAY = OFF    // PPSLOCK can be set and cleared repeatedly
+#pragma config STVREN = ON      // Stack full/underflow causes Reset
+#pragma config XINST = OFF      // Extended Instruction Set disabled
+
+// CONFIG3L
+#pragma config WDTCPS = WDTCPS_31 // WDT divider 1:65536, software control
+#pragma config WDTE = OFF       // WDT disabled (default is ON: would reset the device)
+
+// CONFIG3H
+#pragma config WDTCWS = WDTCWS_7 // Window always open
+#pragma config WDTCCS = SC      // WDT clock: software control
+
+// CONFIG4L
+#pragma config WRT0 = OFF       // Block 0 not write-protected
+#pragma config WRT1 = OFF       // Block 1 not write-protected
+#pragma config WRT2 = OFF       // Block 2 not write-protected
+#pragma config WRT3 = OFF       // Block 3 not write-protected
+
+// CONFIG4H
+#pragma config WRTC = OFF       // Configuration registers not write-protected
+#pragma config WRTB = OFF       // Boot block not write-protected
+#pragma config WRTD = OFF       // Data EEPROM not write-protected
+#pragma config SCANE = ON       // Scanner module available
+#pragma config LVP = ON         // Low voltage programming enabled (MCLR is MCLR)
+
+// CONFIG5L
+#pragma config CP = OFF         // Program memory not code-protected
+#pragma config CPD = OFF        // Data EEPROM not code-protected
+
+// CONFIG6L
+#pragma config EBTR0 = OFF      // Block 0 not protected from table reads
+#pragma config EBTR1 = OFF      // Block 1 not protected from table reads
+#pragma config EBTR2 = OFF      // Block 2 not protected from table reads
+#pragma config EBTR3 = OFF      // Block 3 not protected from table reads
+
+// CONFIG6H
+#pragma config EBTRB = OFF      // Boot block not protected from table reads
+#endif
+
 #include <xc.h>
 
 #endif

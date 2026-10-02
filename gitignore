@@ -1,7 +1,0 @@
-.gitingnore
-Makefile
-/build/*
-/debug/*
-/dist/*
-!/dist/default/production/*.hex
-/nbproject/*

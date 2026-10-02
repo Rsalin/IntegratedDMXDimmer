@@ -10,13 +10,14 @@
 #include "build_config.h"
 #include <xc.h>
 
+#include "config.h"
 #include "dimmer.h"
 #include "dimmer_hal.h"
 #include "dmx_rx.h"
-#include "pic18f46q10.h"
 
 
 
+void clock_init(void);
 void osc_test(void);
 unsigned char check_test_mode(void);
 void process_channels(void);
@@ -40,34 +41,15 @@ enum directions
 }global_fader_direction;
 
 void main(void) {
-    // 1. Set up OSCCON1 for External Osc with 4x PLL
-    // NOSC = 0b010 (External Osc), NDIV = 0b0000 (Divide by 1)
-    OSCCON1 = 0x20;
+    unsigned int new_address;
 
-    // 2. Explicitly power up the External Oscillator circuit
-    OSCENbits.EXTOEN = 1;
+    clock_init();
 
-    // 3. Wait for Hardware Stability
-    // Wait for the Crystal to physically start vibrating
-    while(!OSCSTATbits.EXTOR); 
-    
-    // Wait for the PLL to lock onto the 8MHz and multiply it
-    while(!OSCSTATbits.PLLR); 
-    
 #ifdef debug
+    ANSELDbits.ANSELD0=0;
     TRISDbits.TRISD0=0;
-    PORTDbits.RD0=0;
+    LATDbits.LATD0=0;
 #endif
-    
-    PPSLOCK = 0x55;
-    PPSLOCK = 0xAA;
-    PPSLOCKbits.PPSLOCKED = 0;
-
-    INT0PPS = 0x23; // Conecta el periférico INT0 al pin físico RE3 (Port E, bit 3)
-
-    PPSLOCK = 0x55;
-    PPSLOCK = 0xAA;
-    PPSLOCKbits.PPSLOCKED = 1;
 
     is_test_mode = check_test_mode();
     dimmer_init (channels_data, NUM_CHANNELS);
@@ -75,25 +57,16 @@ void main(void) {
     usart_timeout_timer_init(USART_TIMEOUT_L, USART_TIMEOUT_H);
     usart_timeout_reset(USART_TIMEOUT_L, USART_TIMEOUT_H);
     address_init();
-    address = 0;
+    address = read_address();
     if (is_test_mode == 1)
     {
         test_init();
     }
-    
-    //Enable interrupts  
-    // Enable Interrupt Priority Vectors (16CXXX Compatibility Mode)
-    INTCONbits.IPEN = 1;
 
-    // Assign peripheral interrupt priority vectors
-
-    // INT0I - high priority
-    IPR0bits.INT0IP = 1;
-    
-    //Enables all low-priority interrupts
-    INTCONbits.GIEL=1;
-    //Enables all high-priority interrupts
-    INTCONbits.GIEH=1;
+    //Enable interrupts
+    INTCONbits.IPEN=1;  //High/low priority vectors
+    INTCONbits.GIEL=1;  //Enables all low-priority interrupts
+    INTCONbits.GIEH=1;  //Enables all high-priority interrupts
     //Go!
     while(1)
     {
@@ -102,15 +75,20 @@ void main(void) {
         TRISBbits.TRISB0=1;
         debug_pin=LATBbits.LATB0; //Attach interrupt line to output
          */
-        
-        //PORTDbits.RD0=0;
+
+        //LATDbits.LATD0=0;
         //__delay_ms(5);
-        PORTDbits.RD0=1;
+        LATDbits.LATD0=1;
         //__delay_ms(5);
-         
+
 #endif
-        //TODO
-        address=read_address();
+        new_address=read_address();
+        if (new_address != address)
+        {
+            INTCONbits.GIEL=0; //address is 16 bit and used by the DMX ISR
+            address=new_address;
+            INTCONbits.GIEL=1;
+        }
         if (is_test_mode == 1)
         {
             test();
@@ -137,8 +115,27 @@ void __interrupt(low_priority)   isr_low(void)
     usart_timeout_isr();  
 }
 
+/*
+ * Oscillator: 16 MHz crystal (HS) x 4 PLL = 64 MHz.
+ * RSTOSC already starts with EXTOSC_4PLL; the switch is requested again and
+ * the code waits until the new oscillator and the PLL are ready.
+ */
+void clock_init(void)
+{
+    OSCCON1 = (0b010 << _OSCCON1_NOSC_POSN)  // NOSC EXTOSC with 4x PLL
+            | (0b0000 << _OSCCON1_NDIV_POSN); // NDIV 1:1
+    while(!OSCCON3bits.ORDY);   // Clock switch done
+    while(!OSCSTATbits.EXTOR);  // Crystal running
+    while(!OSCSTATbits.PLLR);   // PLL locked
+}
+
 unsigned char check_test_mode(void)
 {
+#if TEST_MODE_JUMPER == 0
+    return 0; // No test mode jumper on this board
+#else
+    ANSELBbits.ANSELB5 = 0;
+    ANSELBbits.ANSELB6 = 0;
     TRISBbits.TRISB6 = 1; // Input
     TRISBbits.TRISB5 = 0; // Output
     LATBbits.LATB5   = 0; // Low    
@@ -181,7 +178,8 @@ unsigned char check_test_mode(void)
     LATBbits.LATB5 = 0;
     TRISBbits.TRISB5 = 1;
     TRISBbits.TRISB6 = 1;
-    return 1;   
+    return 1;
+#endif
 }
 
 void process_channels(void)

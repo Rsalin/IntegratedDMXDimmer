@@ -12,25 +12,19 @@
 
 //#define debug
 
-// CONFIG1L
-#pragma config FEXTOSC = HS     // External Oscillator mode (HS > 4MHz)
-#pragma config RSTOSC = EXTOSC_4PLL // Startup with EXTOSC and 4x PLL (8MHz crystal -> 32MHz Fosc)
-
-// CONFIG1H
-#pragma config CLKOUTEN = OFF   // Disable CLKOUT on OSC2 (frees up the pin)
-#pragma config CSWEN = ON       // Clock Switch Enable (Allows OSCCON1 changes)
-#pragma config FCMEN = ON       // Fail-Safe Clock Monitor (Good for debugging crystals)
-
-
-// CONFIG2L
-#pragma config MCLRE = INTMCLR  // LIBERA RE3: Ahora puedes usarlo para el cruce por cero
-#pragma config PWRTE = OFF  // Power-up Timer Enable bit
-#pragma config BOREN = ON
-
-#define _XTAL_FREQ 48000000
+/*
+ * Clock: 16 MHz crystal (HS) x 4 PLL -> Fosc = 64 MHz, Fcy = Fosc/4 = 16 MHz
+ * Configuration bits are in config.h (included only from main.c)
+ */
+#define _XTAL_FREQ 64000000
 
 #define NUM_CHANNELS 8
 
-#endif
+/*
+ * Test mode jumper (RB5 -> RB6). Not available on the PIC18F46Q10 board:
+ * RB5 is not connected and RB6 is ICSPCLK. Set to 1 only on boards that have it.
+ */
+#define TEST_MODE_JUMPER 0
 
+#endif
 
