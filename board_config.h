@@ -39,6 +39,7 @@
  * The firing table in dimmer.c is calculated for this frequency. */
 #define MAINS_HZ        50
 #define SLOTS           128
+#define ZC_SAMPLE_TICKS 300     /* ZC sampling period in Fcy ticks, even, <= 512 (25 us @ 12 MHz) */
 #define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 937 @ 12 MHz */
 
 /* Timer0: Fcy / 256, 16 bit */
