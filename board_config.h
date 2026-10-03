@@ -33,13 +33,13 @@
 /* ---- DMX address DIP switch: X(port, bit), from address bit0 up ---- */
 #define ADDR_PINS(X)    X(C,6) X(C,7) X(D,4) X(D,5) X(D,6) X(D,7) X(B,0) X(B,1) X(B,2)
 
-/* ---- Timer setup (depends on Fcy) ----
- * Timer1 measures the half mains cycle; Timer3 must tick at HALF Timer1's rate
- * so that a period of TMR1H gives 128 slots. Timer1 must not overflow within
- * a half cycle at the lowest mains frequency: 65536*T1_DIV/Fcy > 10 ms.
- * Fcy = 12 MHz: T1 = /4 (3 MHz, overflow 21.8 ms), T3 = /8 (1.5 MHz). */
-#define T1_PRESCALER    2       /* T1CON.CKPS: 0=1:1 1=1:2 2=1:4 3=1:8 */
-#define T3_PRESCALER    3       /* T3CON.CKPS: must be T1_PRESCALER + 1 */
+/* ---- Dimmer timing (Timer3 runs at Fcy, 1:1) ----
+ * Fixed mains frequency. The firing window (ZC falling -> rising edge) is
+ * assumed to be one half mains cycle, split in SLOTS slots (max 255).
+ * The firing table in dimmer.c is calculated for this frequency. */
+#define MAINS_HZ        50
+#define SLOTS           128
+#define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 937 @ 12 MHz */
 
 /* Timer0: Fcy / 256, 16 bit */
 #define TMR0_RELOAD     (65536UL - (FCY_HZ / 256UL) * DMX_TIMEOUT_S)
