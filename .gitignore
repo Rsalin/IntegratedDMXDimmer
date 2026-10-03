@@ -25,3 +25,4 @@ mcc-manifest-*.yml
 *.bak
 *~
 Thumbs.db
+*.pdf

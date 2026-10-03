@@ -14,14 +14,14 @@ typedef enum
     DATA_RX_VALID
 } rx_valid_t;
 
-extern volatile unsigned char dmx_data[NUM_CHANNELS];   // Slots starting at 'address'
-extern volatile unsigned int address;                   // 0 = first slot after the start code
+extern volatile unsigned char dmx_data[NUM_CHANNELS];   // Slots starting at dmx_address
+extern volatile unsigned int dmx_address;               // 0 = first slot after the start code
 extern volatile rx_valid_t rx_valid;                    // Cleared if no frame within DMX_TIMEOUT_S
 
 void dmx_init(void);
 void dmx_isr(void);             // Call from the low priority ISR
 
-void address_init(void);
-unsigned int read_address(void);
+void dmx_address_init(void);
+unsigned int dmx_address_read(void);
 
 #endif

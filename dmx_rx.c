@@ -5,6 +5,10 @@
  */
 #include "dmx_rx.h"
 
+/* PIC18-Q register values (datasheet DS40001996D) */
+#define T0CS_FOSC_4     0b010       // Timer0 clock source: Fosc/4
+#define T0CKPS_1_256    0b1000      // Timer0 prescaler 1:256
+
 typedef enum
 {
     ST_WAIT_BREAK,
@@ -14,7 +18,7 @@ typedef enum
 } dmx_state_t;
 
 volatile unsigned char dmx_data[NUM_CHANNELS];
-volatile unsigned int address;
+volatile unsigned int dmx_address;
 volatile rx_valid_t rx_valid;
 
 static volatile dmx_state_t state;
@@ -37,9 +41,9 @@ void dmx_init(void)
     /* Timeout timer: Timer0 16 bit, Fcy, 1:256, low priority */
     T0CON0 = 0;
     T0CON0bits.T016BIT = 1;
-    T0CON1bits.T0CS = 0b010;        // Fosc/4
+    T0CON1bits.T0CS = T0CS_FOSC_4;
     T0CON1bits.T0ASYNC = 0;
-    T0CON1bits.T0CKPS = 0b1000;     // 1:256
+    T0CON1bits.T0CKPS = T0CKPS_1_256;
     IPR0bits.TMR0IP = 0;
     timeout_restart();
 
@@ -116,7 +120,7 @@ static void rx_isr(void)
             state = data ? ST_WAIT_BYTE : ST_WAIT_START;
             break;
         }
-        if (slot_index >= address)
+        if (slot_index >= dmx_address)
             dmx_data[data_index++] = data;
         slot_index++;
         if (data_index >= NUM_CHANNELS || slot_index >= DMX_CHANNELS)
@@ -144,14 +148,14 @@ void dmx_isr(void)
 
 /* ---- Address DIP switch (read non-inverted: ON = 1) ---- */
 
-void address_init(void)
+void dmx_address_init(void)
 {
 #define X(p,n)  REG(TRIS,p) |= MASK(n); REG(ANSEL,p) &= (unsigned char)~MASK(n);
     ADDR_PINS(X)
 #undef X
 }
 
-unsigned int read_address(void)
+unsigned int dmx_address_read(void)
 {
     unsigned int a = 0;
     unsigned char bit = 0;

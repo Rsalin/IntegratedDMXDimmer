@@ -8,6 +8,7 @@ Updated 2026-10-03 (ZC moved to RB5, fixed 50 Hz). Builds without errors (XC8 3.
 | `board_config.h` | Everything board/PIC dependent: clock, output pins, ZC pin, DMX RX pin and PPS, DIP address pins, Timer0 reload |
 | `config_bits.h` | Configuration words (only included from `main.c`) |
 | `main.c` | Clock init, main loop, ISR vectors |
+| `firing_table.h` | 50 Hz linearisation table (dimming value -> firing instant) |
 | `dimmer.c/.h` | Phase control (ZC, Timer3+CCP1, outputs) |
 | `dmx_rx.c/.h` | EUSART1 DMX receiver, Timer0 timeout, DIP address |
 
@@ -24,6 +25,6 @@ Outputs ch0..7: RB3, RB4, RA2, RA3, RC5, RC4, RD3, RC3. ZC: **RB5** (IOC), wired
 2. ZC polarity/window: falling edge starts firing, rising edge is the zero crossing; check the low time is ~10 ms.
 3. DMX reception on RC1 and address mapping. DIP is read non-inverted (ON = 1), no pull-ups enabled; invert in `read_address()` or enable WPUx if needed.
 4. BOR level 2.70 V chosen without knowing VCC.
-5. Values taken from datasheet knowledge, not verified against the PDF: CCP mode `0b1010`, `C1TSEL = 0b10`, `T0CS = 0b010`, `T3CLK.CS = 0b0001`, `RX1PPS = 0x11` for RC1.
+5. Register values (CCP mode, C1TSEL, T0CS, T1/T3 CS, NOSC, RX1PPS) checked against the datasheet DS40001996D. DIP address polarity still unchecked.
 
 Original working 18F4550 code: commit `1505473` on `master`.

@@ -8,11 +8,14 @@
  * never comes (mains lost) everything is turned off one slot after the window.
  */
 #include "dimmer.h"
+#include "firing_table.h"
+
+/* PIC18-Q register values (datasheet DS40001996D) */
+#define TxCLK_FOSC_4        0b00001     // Timer1/3 clock source: Fosc/4
+#define CCP1_TIMER3         0b10        // CCPTMRS.C1TSEL: Timer3 in capture/compare mode
+#define CCP_MODE_COMPARE    0b1010      // Compare, set CCPxIF on match, no output pin
 
 #define NEVER_FIRE_SLOT 255     // Never reached: slots are < SLOTS <= 255
-
-/* Linear firing table for 50 Hz: dimming value -> firing slot (0..255 scale) */
-static const unsigned char firing_map[256] = {255, 238, 232, 227, 224, 221, 218, 216, 214, 212, 210, 208, 207, 205, 204, 202, 201, 200, 198, 197, 196, 195, 194, 193, 192, 191, 190, 189, 188, 187, 186, 185, 184, 183, 182, 181, 180, 180, 179, 178, 177, 176, 176, 175, 174, 173, 173, 172, 171, 170, 170, 169, 168, 168, 167, 166, 166, 165, 164, 164, 163, 162, 162, 161, 160, 160, 159, 158, 158, 157, 157, 156, 155, 155, 154, 154, 153, 152, 152, 151, 151, 150, 149, 149, 148, 148, 147, 147, 146, 145, 145, 144, 144, 143, 143, 142, 141, 141, 140, 140, 139, 139, 138, 138, 137, 136, 136, 135, 135, 134, 134, 133, 133, 132, 132, 131, 131, 130, 129, 129, 128, 128, 127, 127, 126, 126, 125, 125, 124, 124, 123, 123, 122, 121, 121, 120, 120, 119, 119, 118, 118, 117, 117, 116, 116, 115, 114, 114, 113, 113, 112, 112, 111, 111, 110, 110, 109, 108, 108, 107, 107, 106, 106, 105, 105, 104, 103, 103, 102, 102, 101, 101, 100, 99, 99, 98, 98, 97, 96, 96, 95, 95, 94, 93, 93, 92, 92, 91, 90, 90, 89, 89, 88, 87, 87, 86, 85, 85, 84, 83, 83, 82, 81, 81, 80, 79, 78, 78, 77, 76, 75, 75, 74, 73, 72, 72, 71, 70, 69, 68, 68, 67, 66, 65, 64, 63, 62, 61, 60, 59, 58, 57, 56, 55, 54, 53, 52, 50, 49, 48, 46, 45, 44, 42, 40, 39, 37, 35, 33, 31, 28, 25, 22, 17, 11, 0};
 
 static unsigned char slot_counter;
 static unsigned int next_match;
@@ -92,11 +95,11 @@ void dimmer_init(const unsigned char *data, unsigned char length)
     /* Timer3 (Fosc/4, 1:1) + CCP1 compare on Timer3 */
     T3CON = 0;
     T3GCON = 0;
-    T3CLKbits.CS = 0b0001;
+    T3CLKbits.CS = TxCLK_FOSC_4;
     T3CONbits.RD16 = 1;
-    CCPTMRSbits.C1TSEL = 0b10;      // CCP1 uses Timer3
+    CCPTMRSbits.C1TSEL = CCP1_TIMER3;      // CCP1 uses Timer3
     CCP1CON = 0;
-    CCP1CONbits.MODE = 0b1010;      // Compare, interrupt on match (no pin)
+    CCP1CONbits.MODE = CCP_MODE_COMPARE;      // Compare, interrupt on match (no pin)
     CCP1CONbits.EN = 1;
     PIE6bits.CCP1IE = 0;
     PIR6bits.CCP1IF = 0;
