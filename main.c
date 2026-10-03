@@ -40,6 +40,14 @@ void main(void)
     address_init();
     address = read_address();
 
+#ifdef TEST_ALL_ON
+    /* Hardware test: all triac gates on permanently, no interrupts */
+#define X(p,n)  REG(LAT,p) |= MASK(n);
+    OUTPUT_PINS(X)
+#undef X
+    while (1);
+#endif
+
     INTCONbits.IPEN = 1;    // High/low priority vectors
     INTCONbits.GIEL = 1;
     INTCONbits.GIEH = 1;

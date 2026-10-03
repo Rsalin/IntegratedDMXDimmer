@@ -10,6 +10,9 @@
 
 #include <xc.h>
 
+/* Hardware test: uncomment to keep all triacs always on (mains connected: careful) */
+//#define TEST_ALL_ON
+
 /* ---- Clock: 12 MHz crystal (HS) x4 PLL = 48 MHz (set in config_bits.h) ---- */
 #define XTAL_HZ         12000000UL
 #define _XTAL_FREQ      48000000UL
@@ -20,8 +23,8 @@
 #define NUM_CHANNELS    8
 
 /* ---- Zero crossing input (interrupt-on-change pin) ---- */
-#define ZC_PORT         E
-#define ZC_PIN          2
+#define ZC_PORT         B       /* needs interrupt-on-change (RE2 has none) */
+#define ZC_PIN          5
 
 /* ---- DMX RX (EUSART1) ---- */
 #define DMX_RX_PORT     C
@@ -39,7 +42,6 @@
  * The firing table in dimmer.c is calculated for this frequency. */
 #define MAINS_HZ        50
 #define SLOTS           128
-#define ZC_SAMPLE_TICKS 300     /* ZC sampling period in Fcy ticks, even, <= 512 (25 us @ 12 MHz) */
 #define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 937 @ 12 MHz */
 
 /* Timer0: Fcy / 256, 16 bit */

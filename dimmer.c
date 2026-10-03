@@ -1,7 +1,7 @@
 /*
  * dimmer.c - Digital phase-control dimmer, fixed mains frequency (MAINS_HZ).
  *
- * ZC input (no IOC on that pin: it is sampled by Timer2 every ZC_SAMPLE_TICKS): the falling edge starts the firing window, the rising edge is the
+ * ZC input: the falling edge starts the firing window, the rising edge is the
  * mains zero crossing (all outputs off). The window is split in SLOTS slots of
  * SLOT_TICKS (Timer3 + CCP1 compare, free running, no drift). On each slot,
  * every channel whose threshold has been reached is fired. If the rising edge
@@ -18,13 +18,14 @@ static unsigned char slot_counter;
 static unsigned int next_match;
 static unsigned char fire_thresholds[NUM_CHANNELS];
 
-/* ---- ZC pin: sampled by Timer2 (RE2 has no interrupt-on-change) ---- */
+/* ---- ZC pin: interrupt-on-change, both edges ---- */
 #define ZC_TRIS     REG(TRIS,ZC_PORT)
 #define ZC_ANSEL    REG(ANSEL,ZC_PORT)
 #define ZC_PORTREG  REG(PORT,ZC_PORT)
+#define ZC_IOC_POS  REG3(IOC,ZC_PORT,P)
+#define ZC_IOC_NEG  REG3(IOC,ZC_PORT,N)
+#define ZC_IOC_FLAG REG3(IOC,ZC_PORT,F)
 #define ZC_MASK     MASK(ZC_PIN)
-
-static unsigned char zc_last;
 
 /* ---- Output channels ---- */
 static void turn_all_off(void)
@@ -101,36 +102,26 @@ void dimmer_init(const unsigned char *data, unsigned char length)
     PIR6bits.CCP1IF = 0;
     IPR6bits.CCP1IP = 1;
 
-    /* ZC input, sampled by Timer2 (Fosc/4) interrupt, high priority */
+    /* ZC input, both edges, high priority */
     ZC_TRIS |= ZC_MASK;
     ZC_ANSEL &= (unsigned char)~ZC_MASK;
-    zc_last = ZC_PORTREG & ZC_MASK;
-    T2CON = 0;
-    T2CLKCONbits.CS = 0b0001;
-    T2CONbits.CKPS = 0b001;         // 1:2 (Timer2 is 8 bit)
-    T2PR = ZC_SAMPLE_TICKS / 2 - 1;
-    T2CONbits.ON = 1;
-    PIR4bits.TMR2IF = 0;
-    IPR4bits.TMR2IP = 1;
-    PIE4bits.TMR2IE = 1;
+    ZC_IOC_POS |= ZC_MASK;
+    ZC_IOC_NEG |= ZC_MASK;
+    ZC_IOC_FLAG &= (unsigned char)~ZC_MASK;
+    IPR0bits.IOCIP = 1;
+    PIE0bits.IOCIE = 1;
 }
 
 void dimmer_isr(void)
 {
-    if (PIR4bits.TMR2IF)
+    if (PIE0bits.IOCIE && (ZC_IOC_FLAG & ZC_MASK))
     {
-        unsigned char zc;
-        PIR4bits.TMR2IF = 0;
-        zc = ZC_PORTREG & ZC_MASK;
-        if (zc != zc_last)
-        {
-            zc_last = zc;
-            turn_all_off();
-            if (zc)
-                firing_timer_stop();    // Rising: zero crossing
-            else
-                firing_timer_start();   // Falling: firing window begins
-        }
+        ZC_IOC_FLAG &= (unsigned char)~ZC_MASK;
+        turn_all_off();
+        if (ZC_PORTREG & ZC_MASK)
+            firing_timer_stop();        // Rising: zero crossing
+        else
+            firing_timer_start();       // Falling: firing window begins
     }
 
     if (PIE6bits.CCP1IE && PIR6bits.CCP1IF)
