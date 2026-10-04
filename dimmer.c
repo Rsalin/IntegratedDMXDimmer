@@ -4,7 +4,8 @@
  * ZC input: the falling edge starts the firing window, the rising edge is the
  * mains zero crossing (all outputs off). The window is split in SLOTS slots of
  * SLOT_TICKS (Timer3 + CCP1 compare, free running, no drift). On each slot,
- * every channel whose threshold has been reached is fired. If the rising edge
+ * every channel whose threshold has been reached is fired (256 slots = one per
+ * DMX step). If the rising edge
  * never comes (mains lost) everything is turned off one slot after the window.
  */
 #include "dimmer.h"
@@ -15,7 +16,7 @@
 #define CCP1_TIMER3         0b10        // CCPTMRS.C1TSEL: Timer3 in capture/compare mode
 #define CCP_MODE_COMPARE    0b1010      // Compare, set CCPxIF on match, no output pin
 
-#define NEVER_FIRE_SLOT 255     // Never reached: slots are < SLOTS <= 255
+#define NEVER_FIRE_SLOT 255     // Never reached: only slots 0..SLOTS-2 (254) fire; slot 255 ends the window
 
 static unsigned char slot_counter;
 static unsigned int next_match;
@@ -77,8 +78,7 @@ void dimmer_set_levels(const unsigned char *data, unsigned char length)
 {
     unsigned char i;
     for (i = 0; i < length && i < NUM_CHANNELS; ++i)
-        fire_thresholds[i] = data[i] ?
-            (unsigned char)(((unsigned int)firing_map[data[i]] * SLOTS) >> 8) : NEVER_FIRE_SLOT;
+        fire_thresholds[i] = data[i] ? firing_map[data[i]] : NEVER_FIRE_SLOT;  // 1 slot per DMX step
 }
 
 void dimmer_init(const unsigned char *data, unsigned char length)
@@ -105,6 +105,10 @@ void dimmer_init(const unsigned char *data, unsigned char length)
     PIR6bits.CCP1IF = 0;
     IPR6bits.CCP1IP = 1;
 
+    /* ZC also wired to RE2: input + analog = high impedance, no digital buffer */
+    REG(TRIS,ZC_ALT_PORT) |= MASK(ZC_ALT_PIN);
+    REG(ANSEL,ZC_ALT_PORT) |= MASK(ZC_ALT_PIN);
+
     /* ZC input, both edges, high priority */
     ZC_TRIS |= ZC_MASK;
     ZC_ANSEL &= (unsigned char)~ZC_MASK;
@@ -130,7 +134,7 @@ void dimmer_isr(void)
     if (PIE6bits.CCP1IE && PIR6bits.CCP1IF)
     {
         PIR6bits.CCP1IF = 0;
-        if (slot_counter < SLOTS)
+        if (slot_counter < SLOTS - 1)   // 8 bit counter: the last slot (255) is the window end
         {
             set_next_match(next_match + SLOT_TICKS);
             fire_all(slot_counter);

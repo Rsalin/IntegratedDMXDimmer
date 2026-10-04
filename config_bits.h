@@ -1,12 +1,12 @@
 /*
  * config_bits.h - Configuration words. Include ONLY from main.c.
- * PIC18F46Q10, 12 MHz crystal on RA6/RA7, x4 PLL -> 48 MHz.
+ * PIC18F46Q10, 16 MHz crystal on RA6/RA7, x4 PLL -> 64 MHz.
  */
 #ifndef CONFIG_BITS_H
 #define CONFIG_BITS_H
 
 #pragma config FEXTOSC = HS         // Crystal > 8 MHz
-#pragma config RSTOSC = EXTOSC_4PLL // Start with EXTOSC x4 PLL (12 -> 48 MHz)
+#pragma config RSTOSC = EXTOSC_4PLL // Start with EXTOSC x4 PLL (16 -> 64 MHz)
 #pragma config CLKOUTEN = OFF
 #pragma config CSWEN = ON
 #pragma config FCMEN = ON

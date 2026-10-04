@@ -13,9 +13,9 @@
 /* Hardware test: uncomment to keep all triacs always on (mains connected: careful) */
 //#define TEST_ALL_ON
 
-/* ---- Clock: 12 MHz crystal (HS) x4 PLL = 48 MHz (set in config_bits.h) ---- */
-#define XTAL_HZ         12000000UL
-#define _XTAL_FREQ      48000000UL
+/* ---- Clock: 16 MHz crystal (HS) x4 PLL = 64 MHz (set in config_bits.h) ---- */
+#define XTAL_HZ         16000000UL
+#define _XTAL_FREQ      64000000UL
 #define FCY_HZ          (_XTAL_FREQ / 4)
 
 /* ---- Outputs: X(port, bit), in channel order ch0..chN ---- */
@@ -25,6 +25,9 @@
 /* ---- Zero crossing input (interrupt-on-change pin) ---- */
 #define ZC_PORT         B       /* needs interrupt-on-change (RE2 has none) */
 #define ZC_PIN          5
+/* The ZC signal is also wired to this pin: keep it high impedance (input, analog) */
+#define ZC_ALT_PORT     E
+#define ZC_ALT_PIN      2
 
 /* ---- DMX RX (EUSART1) ---- */
 #define DMX_RX_PORT     C
@@ -38,11 +41,11 @@
 
 /* ---- Dimmer timing (Timer3 runs at Fcy, 1:1) ----
  * Fixed mains frequency. The firing window (ZC falling -> rising edge) is
- * assumed to be one half mains cycle, split in SLOTS slots (max 255).
- * The firing table in dimmer.c is calculated for this frequency. */
+ * assumed to be one half mains cycle, split in SLOTS = 256 slots, one per
+ * firing table step (firing_table.h is calculated for 50 Hz, 1/256 steps). */
 #define MAINS_HZ        50
-#define SLOTS           128
-#define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 937 @ 12 MHz */
+#define SLOTS           256
+#define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 625 @ 16 MHz Fcy */
 
 /* Timer0: Fcy / 256, 16 bit */
 #define TMR0_RELOAD     (65536UL - (FCY_HZ / 256UL) * DMX_TIMEOUT_S)
