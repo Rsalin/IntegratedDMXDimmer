@@ -1,14 +1,14 @@
 # MPLAB X build output
-/build/
-/dist/
-/debug/
+/dimmer_MPLAB_proj.X/build/
+/dimmer_MPLAB_proj.X/dist/
+/dimmer_MPLAB_proj.X/debug/
 
 # MPLAB X generated / per-machine project files
-# (keep nbproject/configurations.xml and nbproject/project.xml)
-/nbproject/private/
-/nbproject/Makefile-*.mk
-/nbproject/Makefile-genesis.properties
-/nbproject/Package-*.bash
+# (keep dimmer_MPLAB_proj.X/nbproject/configurations.xml and project.xml, and the Makefile)
+/dimmer_MPLAB_proj.X/nbproject/private/
+/dimmer_MPLAB_proj.X/nbproject/Makefile-*.mk
+/dimmer_MPLAB_proj.X/nbproject/Makefile-genesis.properties
+/dimmer_MPLAB_proj.X/nbproject/Package-*.bash
 
 # MPLAB X / debugger logs
 *.log
