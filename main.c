@@ -25,10 +25,14 @@ static void process_channels(void)
     unsigned char i;
     for (i = 0; i < NUM_CHANNELS; i++)
     {
+#ifdef TEST_FIXED_LEVEL
+        channels_data[i] = TEST_FIXED_LEVEL;
+#else
         if (rx_valid == DATA_RX_VALID && dmx_address < (DMX_CHANNELS - i))
             channels_data[i] = dmx_data[i];
         else
             channels_data[i] = 0;
+#endif
     }
 }
 

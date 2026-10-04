@@ -13,6 +13,10 @@
 /* Hardware test: uncomment to keep all triacs always on (mains connected: careful) */
 //#define TEST_ALL_ON
 
+/* Hardware test: fixed dimming value on all channels, DMX ignored (64 = 25%).
+ * Comment out to use DMX again. */
+//#define TEST_FIXED_LEVEL    64
+
 /* ---- Clock: 16 MHz crystal (HS) x4 PLL = 64 MHz (set in config_bits.h) ---- */
 #define XTAL_HZ         16000000UL
 #define _XTAL_FREQ      64000000UL
