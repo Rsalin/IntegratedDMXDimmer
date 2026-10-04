@@ -38,7 +38,9 @@
 #define DMX_RX_PIN      1
 #define DMX_RX_PPS      0x11    /* RX1PPS value: (port index A=0,B=1,C=2.. << 3) | pin */
 #define DMX_BAUD        250000UL
-#define DMX_TIMEOUT_S   1       /* no valid frame for this long -> outputs off (max ~1) */
+#define DMX_TIMEOUT_S   5       /* no valid frame for this many seconds -> outputs off.
+                                 * Until then the last values are held. 0 = hold forever
+                                 * (max 255). Nothing is output before the first frame. */
 
 /* ---- DMX address DIP switch: X(port, bit), from address bit0 up ---- */
 #define ADDR_PINS(X)    X(C,6) X(C,7) X(D,4) X(D,5) X(D,6) X(D,7) X(B,0) X(B,1) X(B,2)
@@ -51,8 +53,8 @@
 #define SLOTS           256
 #define SLOT_TICKS      (FCY_HZ / (2UL * MAINS_HZ * SLOTS))     /* 625 @ 16 MHz Fcy */
 
-/* Timer0: Fcy / 256, 16 bit */
-#define TMR0_RELOAD     (65536UL - (FCY_HZ / 256UL) * DMX_TIMEOUT_S)
+/* Timer0: Fcy / 256, 16 bit, overflows every second (counted DMX_TIMEOUT_S times) */
+#define TMR0_RELOAD     (65536UL - (FCY_HZ / 256UL))
 
 /* ---- Helpers (do not edit) ---- */
 #define CAT2_(a,b)      a##b

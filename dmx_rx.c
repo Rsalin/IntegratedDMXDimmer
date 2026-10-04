@@ -24,12 +24,19 @@ volatile rx_valid_t rx_valid;
 static volatile dmx_state_t state;
 static unsigned int slot_index;
 static unsigned char data_index;
+static volatile unsigned char timeout_left;     // Seconds until the data is invalidated
+
+static void timer0_reload(void)
+{
+    TMR0H = (unsigned char)(TMR0_RELOAD >> 8);
+    TMR0L = (unsigned char)TMR0_RELOAD;
+}
 
 /* Restarts the timeout and validates the data */
 static void timeout_restart(void)
 {
-    TMR0H = (unsigned char)(TMR0_RELOAD >> 8);
-    TMR0L = (unsigned char)TMR0_RELOAD;
+    timer0_reload();
+    timeout_left = DMX_TIMEOUT_S;
     rx_valid = DATA_RX_VALID;
     T0CON0bits.T0EN = 1;
     PIR0bits.TMR0IF = 0;
@@ -139,10 +146,20 @@ void dmx_isr(void)
 
     if (PIE0bits.TMR0IE && PIR0bits.TMR0IF)
     {
-        rx_valid = DATA_RX_INVALID;
-        T0CON0bits.T0EN = 0;
-        PIE0bits.TMR0IE = 0;
         PIR0bits.TMR0IF = 0;
+#if DMX_TIMEOUT_S > 0
+        if (--timeout_left == 0)
+        {
+            rx_valid = DATA_RX_INVALID;
+            T0CON0bits.T0EN = 0;
+            PIE0bits.TMR0IE = 0;
+        }
+        else
+            timer0_reload();
+#else
+        T0CON0bits.T0EN = 0;            // Hold forever: no timeout
+        PIE0bits.TMR0IE = 0;
+#endif
     }
 }
 
